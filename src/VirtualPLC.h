@@ -1,50 +1,56 @@
 /* 
     A simple library for simulating general PLC functionality.
 */
-#include <string>
+#define STRING_NAME_LEN 20
 
 /* Variables and enums */
 enum VariableType { BOOL, BYTE, INT, FLOAT };
 enum GPIOMode { INPUT, OUTPUT };
 
 /* Function pointers */
-typedef int (*PeripheryType_Create)(std::string name);
+typedef int (*PeripheryType_Create)(const char[]);
 typedef int (*PeripheryType_Set)(PeripheryType*);
-typedef int (*PeripheryInstance_Create)(std::string name);
+typedef int (*PeripheryInstance_Create)(const char[]);
 typedef int (*PeripheryInstance_Set)(PeripheryInstance*);
+typedef int (*PeripheryInstance_Loop)(const char[]);
+typedef int (*Instruction_Parse)(CPU, Line);
+
 
 typedef struct {
-    uint8_t pin;
+    int pin;
     GPIOMode mode;
-    Variable var;
+    Variable *var;
 } GPIO;
 
 typedef struct {
-    std::string name;
+    char name[STRING_NAME_LEN];
     PeripheryType_Create create;
     PeripheryType_Set set;
-}PeripheryType;
+} PeripheryType;
 
-/* Structures */
 typedef struct {
-    std::string name;
+    char name[STRING_NAME_LEN];
     VariableType type;
-    uint32_t value;
+    int ivalue;
+    float fvalue;
 } Variable;
 
 typedef struct {
-    std::string name;
+    char name[STRING_NAME_LEN];
     PeripheryType type;
     PeripheryInstance_Create create;
     PeripheryInstance_Set set;
 } PeripheryInstance;
 
 typedef struct {
-
+    char label[20];
+    char instruction[20];
+    char args[5];
+    int args_count;
 } Line;
 
 typedef struct {
-    uint8_t PC;
+    int PC;
     Variable vars[15];
     PeripheryType periph_types[15];
     PeripheryInstance instances[15];
@@ -53,7 +59,8 @@ typedef struct {
 
 typedef struct 
 {
-
+    char name[20];
+    Instruction_Parse instr;
 } Instruction;
 
 
