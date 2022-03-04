@@ -1,0 +1,19 @@
+CREATE GPIO iWaterLevel
+SET iWaterLevel MODE INPUT -> 4 0 MODE INPUT
+SET iWaterLevel PIN 5
+SET iWaterLevel DEBOUNCE
+SET iWaterLevel VARIABLE iWaterLevel
+
+
+CREATE GPIO oAlarm
+SET oAlarm MODE OUTPUT
+SET oAlarm PIN 4
+
+CREATE ESPNOW comm
+SET comm ID 0
+SET comm OUT iWaterLevel WaterLevel
+SET comm IN iOverflow Overflow
+
+CREATE TIMER tPump
+SET tPump MODE TP
+SET tPump TIME 20000
