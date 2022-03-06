@@ -58,7 +58,7 @@ typedef struct sPeripheryInstance {
 typedef struct sLine{
     int line_number;
     std::string instruction;
-    std::string args[5];
+    std::string args[10];
     int args_count;
 } Line;
 
