@@ -23,10 +23,10 @@ typedef int (*PeripheryType_Set)(PeripheryType *periph_type);
 typedef int (*PeripheryInstance_Create)(const char[]);
 typedef int (*PeripheryInstance_Set)(PeripheryInstance *periph_instance);
 typedef int (*PeripheryInstance_Loop)(const char[]);
-typedef int (*Instruction_Parse)(CPU *cpu, Line *line);
+typedef int (*Instruction_Parse)(CPU *cpu,Line *line);
 
 typedef int (*GetLineNumber)(const char src[]);
-typedef Line (*GetNextLine)(const char src[],  Line curr_line);
+typedef int (*GetNextLine)(std::ifstream& src,  Line* curr_line);
 
 
 typedef struct sVariable {
@@ -42,23 +42,70 @@ typedef struct sGPIO{
     Variable *var;
 } GPIO;
 
+/*
+TIMER struct
+specify time value -> preset time
+actual time
+lasttimemillis -> how much time passed since last call
+timerMode -> On Delay ,off delay, pulse etc
+for timer, input and output variables are need Variable *input, Variable *output
+*/
+typedef struct sTimer {
+    int presetTime;
+    int actualTime;
+    int lastTimeMillis;
+    int timerMode; //onDelay, offDelay, pulse
+    int *input;
+    int *output;
+}Timer;
+
+
+//CREATE GPIO iButton
+//CREATE func will go thorugh PeriphTypes in cpu and look for GPIO and call its function to 
+//create new Periph instance
+//There is periph instances in cpu and it wil setup new element
+//name would be ibutton, type reference will point to periphtype struct
+//it can setup loop function, gpio_loop 
+// sets peripherydata
+
+//SET iButton MODE Out 
+//SET function is called and looks for iButton periphery instance
+//it will call periphtype set function
+//set function in periphtype will use periphdata to access gpioMode and set gpioMode
+
+//same with> SET iButton pin 5
+// SET ibutton var ibutton
+//it should create/find new var in cpu 
+//and set it to Variable in GPIO
+
+//SETUPDONE instruction f.e before it all config , after it the main program
 typedef struct sPeripheryType {
     char name[STRING_NAME_LEN];
     PeripheryType_Create create;
     PeripheryType_Set set;
+    PeripheryInstance_Loop loop;
+    //variable to state how often the loop should called
+    //it should periodically call loop for all instances and update them
+    //if input read from pin and set to Variable in GPIO
+    //if output use variable to update output digitalWrite
+    //cal in everycycle for GPIO
+    //loop here?
 } PeripheryType;
 
 typedef struct sPeripheryInstance {
     char name[STRING_NAME_LEN];
-    PeripheryType type;
+    PeripheryType *type;
     PeripheryInstance_Create create;
-    PeripheryInstance_Set set;
+    //PeripheryInstance_Set set;
+    
+    void* peripheryData; ///--- GPIO structure point to GPIO struct instance
 } PeripheryInstance;
 
 typedef struct sLine{
     int line_number;
-    std::string instruction;
-    std::string args[10];
+    char instruction[20];
+    //use strcpy, strcmp to set data to char arrays
+    char args[10][15];
     int args_count;
 } Line;
 
