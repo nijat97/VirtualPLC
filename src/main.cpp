@@ -3,74 +3,100 @@
 #include "iostream"
 #include "string"
 #include "sstream"
+#include <unistd.h>
 
 using namespace std;
 
+enum
+{
+    SUCCESS = 0,
+    EMPTY
+};
+
 LineReader ln_reader;
 
-Line getNext(const char source[], Line curr_line)
+CPU myCPU;
+int getNext(std::ifstream &src, Line *curr_line)
 {
-    Line line;
-    string str,word;
-    std::ifstream source_code;
+    string str, word;
     int i;
 
-    line.args_count = 0;
-    line.line_number = curr_line.line_number;
+    curr_line->args_count = 0;
 
-    source_code.open(source);
-    if(!source_code)
+    getline(src, str);
+
+    if(str == "")
+        return EMPTY;
+    istringstream ss(str);
+    i = 0;
+    while (ss >> word)
+    {
+        if (i == 0)
+        {
+            curr_line->instruction = word;
+        }
+        else
+        {
+            curr_line->args[curr_line->args_count] = word;
+            curr_line->args_count++;
+        }
+        i++;
+    }
+    curr_line->line_number++;
+
+    return SUCCESS;
+}
+
+int CREATE(CPU *cpu, Line *line)
+{
+    cout << "EXECUTE CREATE";
+}
+
+int InstrParse(CPU *cpu, Line *line)
+{
+    for(int i=0; i<20;i++ )
+    {
+        if(line->instruction == cpu->instructions[i].name)
+        {
+            cpu->instructions[i].instr(cpu,line);
+            return 0;
+        }
+    }
+}
+
+int main()
+{
+    std::ifstream source_code;
+    source_code.open("source.txt");
+    if (!source_code)
     {
         cout << "Unable to open source code" << endl;
         exit(1);
     }
 
-    for(i = 0; i < line.line_number; i++)
-    {
-       getline(source_code, str);
-    }
-    getline(source_code,str);
-    istringstream ss(str);
-    i=0;
-    while (ss >> word) 
-    {
-        if(i==0)
-        {
-            line.instruction = word;
-        }
-        else
-        {
-            line.args[line.args_count] = word;
-            line.args_count++;
-        }
-        i++;
-    }
-    line.line_number++;
-    source_code.close();
-    return line;
-}
-
-int main()
-{
-    char source[20] = "source.txt";
-    Line current[25];
-    current[0].line_number=0;
+    myCPU.instructions[0].name = "CREATE";
+    myCPU.instructions[0].instr= &CREATE;
     ln_reader.get_next_line = &getNext;
 
-    for(int i=0;i<20;i++)
+    while (1)
     {
-        current[i+1] = ln_reader.get_next_line(source,current[i]);
-    }
+        Line current;
+        current.line_number = 0;
+        int res = ln_reader.get_next_line(source_code, &current);
+        if (res == SUCCESS)
+        {
+            InstrParse(&myCPU,&current);
+            cout << current.instruction << endl;
 
-    for(int j=0;j<20;j++)
-    {
-        
-        cout << current[j].instruction << endl;
-
-        for(int i=0; i < current[j].args_count; i++) {
-            cout << current[j].args[i] << " "; 
+            for (int i = 0; i < current.args_count; i++)
+            {
+                cout << current.args[i] << " ";
+            }
+            cout << endl
+                 << "Arg number: " << current.args_count << endl;
+            cout << "Line number: " << current.line_number << endl;
         }
-        cout << endl << "Arg number: " << current[j].args_count<< endl;
-        cout << "Line number: " << current[j].line_number << endl;
+        
+        sleep(1);
     }
 }

@@ -23,10 +23,10 @@ typedef int (*PeripheryType_Set)(PeripheryType *periph_type);
 typedef int (*PeripheryInstance_Create)(const char[]);
 typedef int (*PeripheryInstance_Set)(PeripheryInstance *periph_instance);
 typedef int (*PeripheryInstance_Loop)(const char[]);
-typedef int (*Instruction_Parse)(CPU *cpu, Line *line);
+typedef int (*Instruction_Parse)(CPU *cpu,Line *line);
 
 typedef int (*GetLineNumber)(const char src[]);
-typedef Line (*GetNextLine)(const char src[],  Line curr_line);
+typedef int (*GetNextLine)(std::ifstream& src,  Line* curr_line);
 
 
 typedef struct sVariable {
@@ -71,7 +71,7 @@ typedef struct sLineReader{
 } LineReader;
 
 typedef struct sInstruction {
-    char name[20];
+    std::string name;
     Instruction_Parse instr;
 } Instruction;
 
