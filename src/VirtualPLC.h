@@ -118,7 +118,7 @@ typedef struct sLineReader{
 } LineReader;
 
 typedef struct sInstruction {
-    char name[20];
+    std::string name;
     Instruction_Parse instr;
 } Instruction;
 
