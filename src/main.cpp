@@ -13,7 +13,11 @@ enum
     EMPTY
 };
 
+/* Global variables */
 LineReader ln_reader;
+CPU myCPU;
+GPIO gpio_vars[15];
+Timer timer_vars[3];
 
 /*
 Create virtual peripheries by types GPIO, timer, comm
@@ -23,8 +27,8 @@ Create virtual peripheries by types GPIO, timer, comm
  Pass file_name instead of ifstream reference
 */
 
-CPU myCPU;
 
+/* Parsing the next line in the file */
 int getNext(std::ifstream &src, Line *curr_line)
 {
     string line;
@@ -67,7 +71,6 @@ int getNext(std::ifstream &src, Line *curr_line)
         }
     }
     curr_line->args_count = i;
-    cout << "Arg count: " << i << endl;
     if(i==0)
     {
         strcpy(curr_line->instruction,word.c_str());
@@ -78,26 +81,92 @@ int getNext(std::ifstream &src, Line *curr_line)
         strcpy(curr_line->args[i-1],word.c_str());
         curr_line->args[i-1][word.length()]='\0';
     }
-    cout << "Instruction: " << curr_line->instruction << endl;
-    cout << "Args: " << endl;
-    for(int i=0;i<curr_line->args_count;i++)
-    {
-        cout << curr_line->args[i] << endl;
-    }
+
+    curr_line->line_number++;
     return SUCCESS;
 }
 
-int CREATE(CPU *cpu, Line *line)
+
+/*
+********************************************
+    Function definitions for instructions
+********************************************
+*/
+int Create(CPU *cpu, Line *line)
 {
-    cout << "EXECUTE CREATE\n";
+    // Looks for the first argument(GPIO,TIMER)
+    // in periph_types. If found, it will call
+    //corresponding create function for the periph type
+    cout << "Creating: " << line->args[0]<< endl;
+    for(int i=0;i<sizeof(cpu->periph_types)/sizeof(cpu->periph_types[0]);i++)
+    {
+        if(strcmp(cpu->periph_types[i].name,line->args[0]) == 0)
+        {
+            cpu->periph_types[i].create(cpu,line);
+        } 
+    }
 }
 
+int Set(CPU *cpu, Line *line)
+{
+    for(int i=0;i<sizeof(cpu->periph_types)/sizeof(cpu->periph_types[0]);i++)
+    {
+        if(cpu->periph_types[i].name == line->args[0])
+        {
+            cpu->periph_types[i].set(&cpu->periph_types[i]);
+        } 
+    }
+}
+
+/**********************************************/
+
+/* ********************************************
+ *  CREATE functions for peripherals
+ * ********************************************/
+int CreateGpio(CPU *cpu, Line *line)
+{
+    cout << "Creating GPIO: " << line->args[1] << endl;
+    strcpy(cpu->periph_instances[0].name,line->args[1]);
+    cpu->periph_instances[0].type = &cpu->periph_types[0];
+
+    cpu->periph_instances[0].peripheryData = &gpio_vars[0];
+}
+
+int CreateTimer()
+{
+    //not implemented yet
+}
+/***********************************************/
+
+/* *********************************************
+ * SET functions for peripherals
+ * ********************************************/
+
+int setGpio(CPU *cpu, Line *line)
+{
+    if(line->args[1] == "MODE")
+    {
+
+    }
+}
+
+int setTimer()
+{
+
+}
+
+int setESPNOW()
+{
+
+}
+/* Calls cooresponding function for given line of code */
 int InstrParse(CPU *cpu, Line *line)
 {
-    for(int i=0; i<20;i++ )
+    for(int i=0; i<sizeof(cpu->instructions)/sizeof(cpu->instructions[0]);i++ )
     {
-        if(line->instruction == cpu->instructions[i].name)
+        if(strcmp(line->instruction,cpu->instructions[i].name)==0)
         {
+            cout << line->instruction << " is being executed.." << endl;
             cpu->instructions[i].instr(cpu,line);
             return 0;
         }
@@ -114,8 +183,18 @@ int main()
         exit(1);
     }
 
+    //assign functions to instructions
     strcpy(myCPU.instructions[0].name,"CREATE");
-    myCPU.instructions[0].instr= &CREATE;
+    myCPU.instructions[0].instr= &Create;
+
+    strcpy(myCPU.instructions[1].name,"SET");
+    myCPU.instructions[1].instr= &Set;
+
+
+    //assign function to GPIO periph type
+    strcpy(myCPU.periph_types[0].name, "GPIO");
+    myCPU.periph_types[0].create = &CreateGpio;
+
     ln_reader.get_next_line = &getNext;
     Line current;
     current.line_number = 0;
@@ -124,20 +203,21 @@ int main()
     {
 
         int res = ln_reader.get_next_line(source_code, &current);
-        std::cout << std::endl;
-        // if (res == SUCCESS)
-        // {
-        //     InstrParse(&myCPU,&current);
-        //     cout << current.instruction << endl;
+        if (res == SUCCESS)
+        {
 
-        //     for (int i = 0; i < current.args_count; i++)
-        //     {
-        //         cout << current.args[i] << " ";
-        //     }
-        //     cout << endl
-        //          << "Arg number: " << current.args_count << endl;
-        //     cout << "Line number: " << current.line_number << endl;
-        // }
+            cout << current.instruction << endl;
+
+            for (int i = 0; i < current.args_count; i++)
+            {
+                cout << current.args[i] << " ";
+            }
+            cout << endl
+                 << "Arg number: " << current.args_count << endl;
+            cout << "Line number: " << current.line_number << endl;
+
+            InstrParse(&myCPU,&current);
+        }
         
         sleep(1);
     }

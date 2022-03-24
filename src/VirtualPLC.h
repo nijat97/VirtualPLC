@@ -18,7 +18,7 @@ typedef struct sInstruction Instruction;
 typedef struct sCPU CPU;
 
 /* Function pointers */
-typedef int (*PeripheryType_Create)(const char[]);
+typedef int (*PeripheryType_Create)(CPU *cpu,Line *line);
 typedef int (*PeripheryType_Set)(PeripheryType *periph_type);
 typedef int (*PeripheryInstance_Create)(const char[]);
 typedef int (*PeripheryInstance_Set)(PeripheryInstance *periph_instance);
@@ -42,23 +42,18 @@ typedef struct sGPIO{
     Variable *var;
 } GPIO;
 
-/*
-TIMER struct
-specify time value -> preset time
-actual time
-lasttimemillis -> how much time passed since last call
-timerMode -> On Delay ,off delay, pulse etc
-for timer, input and output variables are need Variable *input, Variable *output
-*/
 typedef struct sTimer {
     int presetTime;
     int actualTime;
-    int lastTimeMillis;
+    int lastTimeMillis; //how much time passed since last call
     int timerMode; //onDelay, offDelay, pulse
-    int *input;
-    int *output;
+    int *input; //input pin
+    int *output; //output pin
 }Timer;
 
+typedef struct sESPNOW {
+    //not implemented yet
+}ESPNOW;
 
 //CREATE GPIO iButton
 //CREATE func will go thorugh PeriphTypes in cpu and look for GPIO and call its function to 
@@ -95,7 +90,6 @@ typedef struct sPeripheryType {
 typedef struct sPeripheryInstance {
     char name[STRING_NAME_LEN];
     PeripheryType *type;
-    PeripheryInstance_Create create;
     //PeripheryInstance_Set set;
     
     void* peripheryData; ///--- GPIO structure point to GPIO struct instance
@@ -104,7 +98,6 @@ typedef struct sPeripheryInstance {
 typedef struct sLine{
     int line_number;
     char instruction[20];
-    //use strcpy, strcmp to set data to char arrays
     char args[10][15];
     int args_count;
 } Line;
@@ -118,7 +111,7 @@ typedef struct sLineReader{
 } LineReader;
 
 typedef struct sInstruction {
-    std::string name;
+    char name[20];
     Instruction_Parse instr;
 } Instruction;
 
@@ -126,7 +119,7 @@ typedef struct sCPU {
     int PC;
     Variable vars[15];
     PeripheryType periph_types[15];
-    PeripheryInstance instances[15];
+    PeripheryInstance periph_instances[15];
     Instruction instructions[15];
 } CPU;
 
