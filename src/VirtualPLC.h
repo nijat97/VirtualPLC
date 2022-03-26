@@ -18,8 +18,8 @@ typedef struct sInstruction Instruction;
 typedef struct sCPU CPU;
 
 /* Function pointers */
-typedef int (*PeripheryType_Create)(CPU *cpu,Line *line);
-typedef int (*PeripheryType_Set)(PeripheryType *periph_type);
+typedef int (*PeripheryType_Create)(CPU *cpu,Line *line, PeripheryType *p_type);
+typedef int (*PeripheryType_Set)(CPU *cpu, Line *line, PeripheryInstance *p_instance);
 typedef int (*PeripheryInstance_Create)(const char[]);
 typedef int (*PeripheryInstance_Set)(PeripheryInstance *periph_instance);
 typedef int (*PeripheryInstance_Loop)(const char[]);
@@ -79,19 +79,13 @@ typedef struct sPeripheryType {
     PeripheryType_Create create;
     PeripheryType_Set set;
     PeripheryInstance_Loop loop;
-    //variable to state how often the loop should called
-    //it should periodically call loop for all instances and update them
-    //if input read from pin and set to Variable in GPIO
-    //if output use variable to update output digitalWrite
-    //cal in everycycle for GPIO
+    int update_freq;
     //loop here?
 } PeripheryType;
 
 typedef struct sPeripheryInstance {
     char name[STRING_NAME_LEN];
     PeripheryType *type;
-    //PeripheryInstance_Set set;
-    
     void* peripheryData; ///--- GPIO structure point to GPIO struct instance
 } PeripheryInstance;
 
@@ -118,8 +112,10 @@ typedef struct sInstruction {
 typedef struct sCPU {
     int PC;
     Variable vars[15];
+    int variable_index=0;
     PeripheryType periph_types[15];
     PeripheryInstance periph_instances[15];
+    int instance_index=0;
     Instruction instructions[15];
 } CPU;
 
