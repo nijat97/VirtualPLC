@@ -4,6 +4,7 @@
 #include "string.h"
 #include "sstream"
 #include <unistd.h>
+#include <ctime>
 
 using namespace std;
 
@@ -21,6 +22,7 @@ GPIO gpio_vars[15];
 Timer timer_vars[3];
 
 int gpio_index=0;
+int timer_index=0;
 
 /*
 Create virtual peripheries by types GPIO, timer, comm
@@ -97,6 +99,8 @@ int getNext(std::ifstream &src, Line *curr_line)
     Function definitions for instructions
 ********************************************
 */
+
+
 int Create(CPU *cpu, Line *line)
 {
     // Looks for the first argument(GPIO,TIMER)
@@ -116,6 +120,7 @@ int Create(CPU *cpu, Line *line)
     cout << line->args[0] << " is not a valid periphery type" << endl;
     return FAIL;
 }
+
 
 int Set(CPU *cpu, Line *line)
 {
@@ -143,6 +148,18 @@ int Print(CPU *cpu, Line *line)
                 cout << endl;
                 cout << "PIN: " << ((GPIO*)cpu->periph_instances[i].peripheryData)->pin << endl;
                 cout << "VARIABLE: " << ((GPIO*)cpu->periph_instances[i].peripheryData)->var->name << endl;
+                cout << endl;
+            }
+            else if(strcmp(cpu->periph_instances[i].type->name,"TIMER")==0)
+            {
+                cout << "PRESET TIME: ";
+                cout << ((Timer*)cpu->periph_instances[i].peripheryData)->presetTime;
+                cout << endl;
+                cout << "TIMER MODE: ";
+                (((Timer*)cpu->periph_instances[i].peripheryData)->timerMode == ONDelay) ? cout << "ONDelay": cout << "OFFDelay";
+                cout << endl;
+                cout << "INPUT GPIO: " << ((Timer*)cpu->periph_instances[i].peripheryData)->input->pin << endl;
+                cout << "OUTPUT GPIO: " << ((Timer*)cpu->periph_instances[i].peripheryData)->output->pin << endl;
                 cout << endl;
             }
         } 
@@ -173,10 +190,27 @@ int CreateGpio(CPU *cpu, Line *line, PeripheryType *p_type)
     return SUCCESS;
 }
 
-int CreateTimer()
+int CreateTimer(CPU *cpu, Line *line, PeripheryType *p_type)
 {
-    //not implemented yet
+    //Check if there is already instance with the same name
+    for(int i=0;i<sizeof(cpu->periph_instances)/sizeof(cpu->periph_instances[0]);i++)
+    {
+        if(strcmp(cpu->periph_instances[i].name,line->args[1]) == 0)
+        {
+            cout << "Instance is already there" << endl;
+            return FAIL;
+        }
+    }
+    
+    strcpy(cpu->periph_instances[cpu->instance_index].name,line->args[1]);
+    cpu->periph_instances[cpu->instance_index].type = p_type;
+    cpu->periph_instances[cpu->instance_index].peripheryData = &timer_vars[timer_index];
+    cpu->instance_index++;
+    timer_index++;
+    return SUCCESS;
 }
+
+
 /***********************************************/
 
 /* *********************************************
@@ -208,17 +242,119 @@ int setGpio(CPU *cpu, Line *line, PeripheryInstance *p_instance)
     }
 }
 
-int setTimer()
+int setTimer(CPU *cpu, Line *line, PeripheryInstance *p_instance)
 {
-
+    if(strcmp(line->args[1],"MODE")==0)
+    {
+        if(strcmp(line->args[2],"ONDelay")==0)
+        {
+            ((Timer*)(p_instance->peripheryData))->timerMode = ONDelay;
+        }
+        else if(strcmp(line->args[2],"OFFDelay")==0)
+        {
+            ((Timer*)(p_instance->peripheryData))->timerMode = OFFDelay;
+        }
+    }
+    else if(strcmp(line->args[1],"TIME")==0)
+    {
+        ((Timer*)(p_instance->peripheryData))->presetTime = strtol(line->args[2],nullptr,10);
+    }
+    else if(strcmp(line->args[1],"INPUT")==0)
+    {
+        for (int i = 0; i < sizeof(cpu->periph_instances) / sizeof(cpu->periph_instances[0]); i++)
+        {
+            if (strcmp(cpu->periph_instances[i].name, line->args[2]) == 0)
+            {
+                 ((Timer *)(p_instance->peripheryData))->input = (GPIO*)cpu->periph_instances[i].peripheryData;
+            }
+        }
+    }
+    else if(strcmp(line->args[1],"OUTPUT")==0)
+    {
+        for (int i = 0; i < sizeof(cpu->periph_instances) / sizeof(cpu->periph_instances[0]); i++)
+        {
+            if (strcmp(cpu->periph_instances[i].name, line->args[2]) == 0)
+            {
+                 ((Timer *)(p_instance->peripheryData))->output = (GPIO*)cpu->periph_instances[i].peripheryData;
+            }
+        }
+    }
+    else if(strcmp(line->args[1],"ENABLE")==0)
+    {
+        ((Timer *)(p_instance->peripheryData))->EN = true;
+        ((Timer *)(p_instance->peripheryData))->lastMillis = time(nullptr);
+        ((Timer *)(p_instance->peripheryData))->lastInputState = ((Timer *)(p_instance->peripheryData))->input->var->ivalue;
+    }
 }
 
 int setESPNOW()
 {
 
 }
+
+/**********************************/
+/* Loop functions for peripherals */
+/**********************************/
+
+void loopGpio()
+{
+    if(gpio_index == 0)
+    {
+        cout << "NO GPIO Registered!" << endl;
+        return;
+    }
+
+    for(int i=0; i < gpio_index; i++)
+    {
+        if(gpio_vars[i].mode == INPUT)
+        {
+            cout << "GPIO Pin " << gpio_vars[i].pin << " is read" << endl;
+            //gpio_vars[i].var->ivalue = digitalRead(gpio_vars[i].pin);
+        }
+        else if(gpio_vars[i].mode == OUTPUT)
+        {
+            cout << "GPIO Pin " << gpio_vars[i].pin << " is written" << endl;
+            //digitalWrite(gpio_vars[i].pin,gpio_vars[i].var->ivalue);
+        }
+    }
+}
+
+void loopTimer()
+{
+    for (int i = 0; i < timer_index; i++)
+    {
+        if (timer_vars[i].timerMode == ONDelay)
+        {
+            time_t now = time(nullptr);
+            if (timer_vars[i].EN == false)
+                continue;
+
+            if (timer_vars[i].accumulatedTime > timer_vars[i].presetTime)
+            {
+                timer_vars[i].output->var->ivalue = 1;
+                timer_vars[i].accumulatedTime = 0;
+                timer_vars[i].running = false;
+            }
+            if (timer_vars[i].lastInputState == 0 && timer_vars[i].input->var->ivalue == 1)
+            {
+                timer_vars[i].running = true;
+            }
+
+            if (timer_vars[i].running)
+            {
+                timer_vars[i].accumulatedTime += (now - timer_vars[i].lastMillis);
+                cout << timer_vars[i].accumulatedTime << endl;
+            }
+
+            timer_vars[i].lastMillis = time(nullptr);
+            timer_vars[i].lastInputState = timer_vars[i].input->var->ivalue;
+        }
+    }
+}
+
+/**********************************/
 /* Calls cooresponding function for given line of code */
-int InstrParse(CPU *cpu, Line *line)
+int ParseInstruction(CPU *cpu, Line *line)
 {
     bool found=0;
     for(int i=0; i<sizeof(cpu->instructions)/sizeof(cpu->instructions[0]);i++ )
@@ -240,13 +376,20 @@ int main()
     current.line_number = 0;
     std::ifstream source_code;
     source_code.open("source.txt");
+    time_t now, lastMillis = 0;
+
+ 
     if (!source_code)
     {
         cout << "Unable to open source code" << endl;
         exit(1);
     }
 
-    //assign functions to instructions
+    /* Line reader function */
+    ln_reader.get_next_line = &getNext;
+
+
+    /* CPU instructions */
     strcpy(myCPU.instructions[0].name,"CREATE");
     myCPU.instructions[0].instr= &Create;
 
@@ -256,29 +399,40 @@ int main()
     strcpy(myCPU.instructions[2].name,"PRINT");
     myCPU.instructions[2].instr = &Print;
 
-    //assign function to GPIO periph type
+
+    /* Periph types */
     strcpy(myCPU.periph_types[0].name, "GPIO");
     myCPU.periph_types[0].create = &CreateGpio;
     myCPU.periph_types[0].set = &setGpio;
-
-    ln_reader.get_next_line = &getNext;
+    myCPU.periph_types[0].loop = &loopGpio;
+ 
+    strcpy(myCPU.periph_types[1].name, "TIMER");
+    myCPU.periph_types[1].create = &CreateTimer;
+    myCPU.periph_types[1].set = &setTimer;
+    myCPU.periph_types[1].loop = &loopTimer;
 
     while (1)
     {
-
-        int res = ln_reader.get_next_line(source_code, &current);
-        if (res == SUCCESS)
+        now = time(nullptr);
+        if (now - lastMillis > 1)
         {
-            cout << "Line " << current.line_number << ": " << current.instruction << " ";
-
-            for (int i = 0; i < current.args_count; i++)
+            int res = ln_reader.get_next_line(source_code, &current);
+            if (res == SUCCESS)
             {
-                cout << current.args[i] << " ";
+                cout << "Line " << current.line_number << ": " << current.instruction << " ";
+
+                for (int i = 0; i < current.args_count; i++)
+                {
+                    cout << current.args[i] << " ";
+                }
+                cout << endl;
+
+                ParseInstruction(&myCPU, &current);
             }
-            cout << endl;
-            InstrParse(&myCPU,&current);
+            lastMillis = now;
+            myCPU.periph_types[0].loop();
+            myCPU.periph_types[1].loop();
         }
-        
-        sleep(1);
+ 
     }
 }

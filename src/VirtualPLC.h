@@ -7,6 +7,7 @@
 /* Variables and enums */
 enum VariableType { BOOL, BYTE, INT, FLOAT };
 enum GPIOMode { INPUT, OUTPUT };
+enum TimerMode { ONDelay, OFFDelay };
 
 typedef struct sVariable Variable;
 typedef struct sGPIO GPIO;
@@ -20,9 +21,9 @@ typedef struct sCPU CPU;
 /* Function pointers */
 typedef int (*PeripheryType_Create)(CPU *cpu,Line *line, PeripheryType *p_type);
 typedef int (*PeripheryType_Set)(CPU *cpu, Line *line, PeripheryInstance *p_instance);
+typedef void (*PeripheryType_Loop)();
 typedef int (*PeripheryInstance_Create)(const char[]);
 typedef int (*PeripheryInstance_Set)(PeripheryInstance *periph_instance);
-typedef int (*PeripheryInstance_Loop)(const char[]);
 typedef int (*Instruction_Parse)(CPU *cpu,Line *line);
 
 typedef int (*GetLineNumber)(const char src[]);
@@ -43,42 +44,27 @@ typedef struct sGPIO{
 } GPIO;
 
 typedef struct sTimer {
-    int presetTime;
-    int actualTime;
-    int lastTimeMillis; //how much time passed since last call
+    bool EN = false;
+    bool running = false;
+    int presetTime; //delay length of timer
+    int accumulatedTime=0; //how much has passed since timer began
+    time_t lastMillis = 0; //time of last call
     int timerMode; //onDelay, offDelay, pulse
-    int *input; //input pin
-    int *output; //output pin
+    int lastInputState=0;
+    GPIO *input; //input pin
+    GPIO *output; //output pin
 }Timer;
 
 typedef struct sESPNOW {
     //not implemented yet
 }ESPNOW;
 
-//CREATE GPIO iButton
-//CREATE func will go thorugh PeriphTypes in cpu and look for GPIO and call its function to 
-//create new Periph instance
-//There is periph instances in cpu and it wil setup new element
-//name would be ibutton, type reference will point to periphtype struct
-//it can setup loop function, gpio_loop 
-// sets peripherydata
-
-//SET iButton MODE Out 
-//SET function is called and looks for iButton periphery instance
-//it will call periphtype set function
-//set function in periphtype will use periphdata to access gpioMode and set gpioMode
-
-//same with> SET iButton pin 5
-// SET ibutton var ibutton
-//it should create/find new var in cpu 
-//and set it to Variable in GPIO
-
 //SETUPDONE instruction f.e before it all config , after it the main program
 typedef struct sPeripheryType {
     char name[STRING_NAME_LEN];
     PeripheryType_Create create;
     PeripheryType_Set set;
-    PeripheryInstance_Loop loop;
+    PeripheryType_Loop loop;
     int update_freq;
     //loop here?
 } PeripheryType;
